@@ -1,0 +1,8 @@
+pandas
+Jinja2
+typer
+pywin32; platform_system == "Windows"
+openpyxl
+beautifulsoup4
+pytz
+
