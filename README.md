@@ -27,15 +27,16 @@ This project provides a small command line utility for sending personalized emai
    source .venv/bin/activate  # Windows: .venv\Scripts\activate
    ```
 
-2. Install dependencies:
+2. Install dependencies and the package itself:
 
    ```bash
-   python -m pip install -r requirements.txt
+   python -m pip install -e .
    ```
 
 ## Configuration
 
 The application reads basic paths and defaults from `settings.toml`. You can adjust directories for attachments, templates and leads as well as the default delay between mails. Environment variables with the same names can override the TOML settings.
+The bundled `sample_leads.xlsx` file contains **fictitious** contact details for testing only.
 
 ```
 [paths]
@@ -53,10 +54,10 @@ template_base     = "email"
 
 ## Usage
 
-The main entry point is `send_emails.py` which exposes a `run` command via Typer.
+After installation the `outspamer` command becomes available:
 
 ```bash
-python send_emails.py run --subject "Subject line" \
+outspamer run --subject "Subject line" \
     --leads path/to/leads.xlsx \
     --template-base email \
     --sheet Sheet1
@@ -64,11 +65,23 @@ python send_emails.py run --subject "Subject line" \
 
 Use `--help` for a complete list of options. For testing you can add `--dry-run` to render mails without sending them.
 
+## Testing
+
+Run `pytest` to execute the unit tests:
+
+```bash
+pytest
+```
+
 ## Example Templates
 
 HTML templates for different languages can be found in the `templates/` directory. Place any files you want attached to every email in the `attachments/` directory.
 
 ## Notes
 
-An `Archive` folder contains older experiments and is not required for normal operation. Some log output is stored in `email.log` after running the script.
+An `Archive` folder contains older experiments and is not required for normal operation. When the tool runs it logs activity to `email.log`, which is ignored by git.
 
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
