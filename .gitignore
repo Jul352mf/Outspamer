@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.log
+.env
+.venv/
+.mypy_cache/
+.pytest_cache/
+attachments/
+leads/*.xlsx
+archive/
+# packages
+*.egg-info/
+dist/
+
+# OS files
+.DS_Store
+

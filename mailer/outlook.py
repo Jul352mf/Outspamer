@@ -1,17 +1,27 @@
-import pythoncom, win32com.client as win32
-import logging, pathlib
+import logging
+import pathlib
+import pythoncom
+import win32com.client as win32
 from datetime import datetime
 
 log = logging.getLogger(__name__)
+
 
 def _select_account(outlook, account_name: str | None):
     if not account_name:
         return None
     for acct in outlook.Session.Accounts:
-        if acct.DisplayName == account_name or acct.SmtpAddress.lower() == account_name.lower():
+        if (
+            acct.DisplayName == account_name
+            or acct.SmtpAddress.lower() == account_name.lower()
+        ):
             return acct
-    log.error("Specified Outlook account '%s' not found; default account will be used", account_name)
+    log.error(
+        "Specified Outlook account '%s' not found; default account will be used",
+        account_name,
+    )
     return None
+
 
 def send_with_outlook(
     *,
@@ -44,17 +54,25 @@ def send_with_outlook(
         return
 
     pythoncom.CoInitialize()
-    outlook = win32.Dispatch("Outlook.Application")
-    mail    = outlook.CreateItem(0)
+    try:
+        outlook = win32.Dispatch("Outlook.Application")
+        mail = outlook.CreateItem(0)
+    except Exception as exc:
+        log.error("Outlook COM error: %s", exc)
+        return
 
     mail.To = row["email"]
     mail.Subject = subject
     mail.HTMLBody = html_body
 
     # attachments
-    for path in pathlib.Path(attachments_dir).iterdir():
-        if path.is_file():
-            mail.Attachments.Add(str(path))
+    attach_path = pathlib.Path(attachments_dir)
+    if attach_path.exists():
+        for path in attach_path.iterdir():
+            if path.is_file():
+                mail.Attachments.Add(str(path))
+    else:
+        log.warning("Attachments directory '%s' not found", attachments_dir)
 
     # account selection
     account_obj = _select_account(outlook, account_name)
@@ -73,4 +91,9 @@ def send_with_outlook(
     # Outlook expects naive local datetime
     mail.DeferredDeliveryTime = schedule_time
     mail.Send()
-    log.info("scheduled %s - %s <%s>", schedule_time.strftime("%Y-%m-%d %H:%M:%S"), row.get("Vorname", ""), row["email"])
+    log.info(
+        "scheduled %s - %s <%s>",
+        schedule_time.strftime("%Y-%m-%d %H:%M:%S"),
+        row.get("Vorname", ""),
+        row["email"],
+    )
