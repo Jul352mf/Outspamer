@@ -1,4 +1,7 @@
-import logging, threading, queue, time
+import logging
+import queue
+import threading
+import time
 from .settings import load
 from .outlook import send_with_outlook
 import pandas as pd
@@ -21,8 +24,9 @@ _COLUMN_MAP = {
     "title": "title",
     "sprache": "language",
     "language": "language",
-    "template": "template"
+    "template": "template",
 }
+
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     new_cols = []
@@ -32,6 +36,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         new_cols.append(key)
     df.columns = new_cols
     return df
+
 
 def _resolve_leads_path(user_path: str | Path | None) -> Path:
     default_path = cfg["defaults"]["default_leads_file"]
@@ -51,6 +56,7 @@ def _resolve_leads_path(user_path: str | Path | None) -> Path:
     if candidate.exists():
         return candidate.resolve()
     raise FileNotFoundError(f"{user_path} (looked in cwd and {cfg['paths']['leads']})")
+
 
 def send_campaign(
     *,
@@ -80,9 +86,11 @@ def send_campaign(
         raise SystemExit(f"Excel missing columns: {missing}")
 
     # prepare Jinja2 env
-    env = Environment(loader=FileSystemLoader(paths["templates"]),
-                      undefined=StrictUndefined,
-                      autoescape=True)
+    env = Environment(
+        loader=FileSystemLoader(paths["templates"]),
+        undefined=StrictUndefined,
+        autoescape=True,
+    )
 
     # time & pacing
     tz = ZoneInfo(defaults["timezone"])
@@ -110,14 +118,26 @@ def send_campaign(
             row = item
             # pick template name
             tpl_name = None
-            if template_column and template_column in leads.columns and pd.notna(row.get(template_column, None)):
+            if (
+                template_column
+                and template_column in leads.columns
+                and pd.notna(row.get(template_column, None))
+            ):
                 tpl_name = str(row[template_column]).strip()
             else:
-                lang = str(row.get(language_column, "")).lower().strip() if language_column in leads.columns else ""
-                tpl_name = f"{template_base}_{lang}.html" if lang else f"{template_base}.html"
+                lang = (
+                    str(row.get(language_column, "")).lower().strip()
+                    if language_column in leads.columns
+                    else ""
+                )
+                tpl_name = (
+                    f"{template_base}_{lang}.html" if lang else f"{template_base}.html"
+                )
             tpl_path = Path(paths["templates"]) / tpl_name
             if not tpl_path.exists():
-                log.error("Template %s not found for %s; skipping", tpl_name, row["email"])
+                log.error(
+                    "Template %s not found for %s; skipping", tpl_name, row["email"]
+                )
                 q.task_done()
                 idx += 1
                 continue
@@ -128,7 +148,7 @@ def send_campaign(
                     nachname=row.get("nachname", ""),
                     company=row.get("company", ""),
                     title=row.get("title", ""),
-                    language=row.get(language_column, "")
+                    language=row.get(language_column, ""),
                 )
             except Exception as e:
                 log.error("Render error for %s: %s", row["email"], e)
@@ -157,7 +177,7 @@ def send_campaign(
     t.start()
 
     for _, row in leads.iterrows():
-        q.put(row.copy())   
+        q.put(row.copy())
     q.put(None)
     q.join()
     t.join()

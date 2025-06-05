@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "outspamer"
+version = "0.1.0"
+description = "Simple Outlook email campaign tool"
+requires-python = ">=3.11"
+authors = [{name = "Unknown"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+[project.scripts]
+outspamer = "send_emails:app"
+
+[tool.flake8]
+max-line-length = 88
+exclude = ["Archive", "__pycache__", ".venv"]
+ignore = ["E501", "W503", "E402"]
