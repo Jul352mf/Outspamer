@@ -11,6 +11,7 @@ This project provides a small command line utility for sending personalized emai
 - Optional send scheduling with configurable delays
 - Supports multiple Outlook accounts
 - Simple CLI interface powered by [Typer](https://typer.tiangolo.com)
+- Optional Tkinter GUI for quick campaigns
 
 ## Requirements
 
@@ -63,6 +64,18 @@ python send_emails.py run --subject "Subject line" \
 ```
 
 Use `--help` for a complete list of options. For testing you can add `--dry-run` to render mails without sending them.
+
+### GUI Application
+
+For a more user-friendly option run the Tkinter based GUI:
+
+```bash
+python send_emails_gui.py
+```
+
+The GUI lets you browse for the leads Excel file, fill in the campaign details
+and start sending in one click while showing live log output. A simple progress
+bar tracks how many mails have been processed.
 
 ## Example Templates
 
