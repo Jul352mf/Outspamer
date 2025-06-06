@@ -21,7 +21,7 @@ app = typer.Typer(help="Cold outreach mailer – Phase‑0 v4 (all features)")
 
 @app.command()
 def run(
-    subject: str = typer.Option(..., prompt=True, help="E‑mail subject line"),
+    subject: str | None = typer.Option(None, "--subject", "-s", help="E‑mail subject line"),
     leads: str | None = typer.Option(
         None, "--leads", "-l", help="Excel file (defaults leads/ dir)"
     ),
@@ -33,6 +33,7 @@ def run(
     account: str | None = typer.Option(
         None, "--account", "-a", help="Outlook account to send from"
     ),
+    cc_column: str = typer.Option("cc", help="Column holding CC addresses"),
     language_column: str = typer.Option(
         "language", help="Column holding language abbreviation (de, en…)"
     ),
@@ -46,6 +47,7 @@ def run(
         send_at=send_at,
         account=account,
         language_column=language_column,
+        cc_column=cc_column,
         dry_run=dry_run,
     )
 

@@ -9,10 +9,17 @@ description = "Simple Outlook email campaign tool"
 requires-python = ">=3.11"
 authors = [{name = "Unknown"}]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "MIT"
 
 [project.scripts]
 outspamer = "send_emails:app"
+
+[tool.setuptools]
+py-modules = ["send_emails"]
+
+[tool.setuptools.packages.find]
+include = ["mailer"]
+
 
 [tool.flake8]
 max-line-length = 88
