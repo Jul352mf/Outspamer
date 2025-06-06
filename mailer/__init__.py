@@ -60,6 +60,7 @@ def _resolve_leads_path(user_path: str | Path | None) -> Path:
         return candidate.resolve()
     raise FileNotFoundError(f"{user_path} (looked in cwd and {cfg['paths']['leads']})")
 
+
 def _extract_subject(html: str) -> str | None:
     """Return subject from rendered HTML, if found."""
     match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
@@ -70,6 +71,7 @@ def _extract_subject(html: str) -> str | None:
         return match.group(1).strip()
     return None
 
+
 def send_campaign(
     *,
     excel_path: str | None = None,
@@ -78,14 +80,18 @@ def send_campaign(
     sheet_name: str | None = None,
     send_at: str | None = "now",
     account: str | None = None,
-    template_column: str | None = "template",
-    language_column: str = "language",
-    cc_column: str | None = "cc",
+    template_column: str | None = None,
+    language_column: str | None = None,
+    cc_column: str | None = None,
     dry_run: bool = False,
 ):
     paths = cfg["paths"]
     defaults = cfg["defaults"]
     template_base = template_base or defaults["template_base"]
+    account = account or (defaults.get("account") or None)
+    template_column = template_column if template_column is not None else defaults.get("template_column")
+    language_column = language_column or defaults.get("language_column", "language")
+    cc_column = cc_column if cc_column is not None else defaults.get("cc_column")
 
     xls = _resolve_leads_path(excel_path)
     sheet = sheet_name or defaults["sheet_name"]
@@ -200,7 +206,7 @@ def send_campaign(
             tpl_subject = _extract_subject(html)
             final_subject = tpl_subject or subject_line or defaults.get("subject_line", "")
             cc_value = None
-            if cc_column and cc_column in leads.columns:
+            if cc_column:
                 val = row.get(cc_column)
                 if pd.notna(val) and str(val).strip():
                     cc_value = str(val).strip()
@@ -216,6 +222,7 @@ def send_campaign(
                 index=idx,
                 account_name=account,
                 dry_run=dry_run,
+                send_now_mode=send_now_mode,
             )
             
             if send_now_mode and not dry_run:
@@ -272,7 +279,12 @@ def send_campaign(
             else:
                 rec = (name_row or base).copy()
                 rec["email"] = all_emails[0]
-                rec["cc"] = ";".join(all_emails[1:]) if len(all_emails) > 1 else None
+                extra_cc = ";".join(all_emails[1:]) if len(all_emails) > 1 else None
+                if extra_cc:
+                    if rec.get("cc"):
+                        rec["cc"] = f"{rec['cc']};{extra_cc}"
+                    else:
+                        rec["cc"] = extra_cc
                 rec["use_named_salutation"] = bool(fname)
                 if not rec.get("vorname"):
                     rec["vorname"] = fname or ""
@@ -297,7 +309,13 @@ def send_campaign(
             else:
                 rec = row.to_dict()
                 rec["email"] = emails[0]
-                rec["cc"] = ";".join(emails[1:]) if len(emails) > 1 else None
+                extra_cc = ";".join(emails[1:]) if len(emails) > 1 else None
+                if extra_cc:
+                    if rec.get("cc"):
+                        rec["cc"] = f"{rec['cc']};{extra_cc}"
+                    else:
+                        rec["cc"] = extra_cc
+                # keep existing cc if no additional recipients
                 rec["use_named_salutation"] = bool(fname)
                 rec["vorname"] = fname or ""
                 q.put(rec)
