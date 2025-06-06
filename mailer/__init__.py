@@ -179,7 +179,7 @@ def send_campaign(
                 q.task_done()
                 idx += 1
                 continue
-            template, tpl_subject, tpl_name_sal, tpl_generic_sal = template_data
+            template, stored_subject, tpl_name_sal, tpl_generic_sal = template_data
             try:
                 context = {
                     "vorname": row.get("vorname", ""),
@@ -203,8 +203,12 @@ def send_campaign(
                 idx += 1
                 continue
 
-            tpl_subject = _extract_subject(html)
-            final_subject = tpl_subject or subject_line or defaults.get("subject_line", "")
+            if stored_subject:
+                rendered_subject = env.from_string(stored_subject).render(**context)
+            else:
+                rendered_subject = None
+            extracted_subject = _extract_subject(html)
+            final_subject = extracted_subject or rendered_subject or subject_line or defaults.get("subject_line", "")
             cc_value = None
             if cc_column:
                 val = row.get(cc_column)

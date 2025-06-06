@@ -77,11 +77,14 @@ def test_template_subject_overrides(monkeypatch, tmp_path):
     monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
     monkeypatch.setitem(mailer.cfg["defaults"], "default_leads_file", str(xls))
     monkeypatch.setitem(mailer.cfg["defaults"], "subject_line", "Default")
+    monkeypatch.setitem(mailer.cfg["defaults"], "template_base", "email")
+
 
     tpl_dir = tmp_path / "tpl2"
     tpl_dir.mkdir()
-    (tpl_dir / "email.html").write_text("<title>Hello {{ vorname }}</title>")
+    (tpl_dir / "email.html").write_text("<p>Subject: Hello {{ vorname }}</p>")
     monkeypatch.setitem(mailer.cfg["paths"], "templates", str(tpl_dir))
+    monkeypatch.setitem(mailer.cfg["defaults"], "template_base", "email")
 
     send_campaign(excel_path=str(xls), subject_line="CLI", dry_run=True)
     assert captured["subject"] == "Hello Foo"
@@ -110,6 +113,7 @@ def test_cc_threshold(monkeypatch, tmp_path):
     tpl_dir.mkdir()
     (tpl_dir / "email.html").write_text("hello {{ salutation }}")
     monkeypatch.setitem(mailer.cfg["paths"], "templates", str(tpl_dir))
+    monkeypatch.setitem(mailer.cfg["defaults"], "template_base", "email")
 
     send_campaign(excel_path=str(xls), subject_line="Hi", dry_run=True)
 
@@ -155,6 +159,7 @@ def test_personalize_first_only(monkeypatch, tmp_path):
         "<p>Name Salutation: Hi {{vorname}}</p><div>{{ salutation }}</div>"
     )
     monkeypatch.setitem(mailer.cfg["paths"], "templates", str(tpl_dir))
+    monkeypatch.setitem(mailer.cfg["defaults"], "template_base", "email")
 
     send_campaign(excel_path=str(xls), subject_line="Hi", dry_run=True)
 

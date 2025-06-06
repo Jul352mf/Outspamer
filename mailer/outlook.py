@@ -78,7 +78,7 @@ def send_with_outlook(
     if attach_path.exists():
         for path in attach_path.iterdir():
             if path.is_file():
-                mail.Attachments.Add(str(path))
+                mail.Attachments.Add(str(path.resolve()))
     else:
         log.warning("Attachments directory '%s' not found", attachments_dir)
 
