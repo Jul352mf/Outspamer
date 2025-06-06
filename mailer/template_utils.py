@@ -1,10 +1,8 @@
-# template_utils.py
 from __future__ import annotations
 from pathlib import Path
 from bs4 import BeautifulSoup
 
 PROCESSED_MARKER = "<!-- processed -->"
-
 
 
 def process_template_file(path: Path) -> None:
@@ -29,7 +27,7 @@ def process_template_file(path: Path) -> None:
         header.decompose()
     # -or-, if you want to be extra safe:
     for tag in soup.select("header, h1.page-title, p.page-description"):
-         tag.decompose()
+        tag.decompose()
 
     html_text = str(soup)
 

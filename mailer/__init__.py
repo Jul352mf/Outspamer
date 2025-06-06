@@ -8,7 +8,7 @@ from .outlook import send_with_outlook
 from .template_utils import process_template_file, extract_subject_and_body
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from zoneinfo import ZoneInfo
 
@@ -154,83 +154,144 @@ def send_campaign(
                 q.task_done()
                 break
             row = item
-            # pick template name
-            tpl_name = None
-            if (
-                template_column
-                and template_column in leads.columns
-                and pd.notna(row.get(template_column, None))
-            ):
-                tpl_name = str(row[template_column]).strip()
-            else:
-                lang = (
-                    str(row.get(language_column, "")).lower().strip()
-                    if language_column in leads.columns
-                    else ""
-                )
-                tpl_name = (
-                    f"{template_base}_{lang}.html" if lang else f"{template_base}.html"
-                )
-            template_data = get_template(tpl_name)
-            if not template_data:
-                log.error(
-                    "Template %s not found for %s; skipping", tpl_name, row["email"]
-                )
-                q.task_done()
-                idx += 1
-                continue
-            template, stored_subject, tpl_name_sal, tpl_generic_sal = template_data
-            try:
-                context = {
-                    "vorname": row.get("vorname", ""),
-                    "nachname": row.get("nachname", ""),
-                    "company": row.get("company", ""),
-                    "title": row.get("title", ""),
-                    "language": row.get(language_column, ""),
-                }
 
-                sal_tpl = tpl_name_sal if row.get("use_named_salutation") else tpl_generic_sal
-                if sal_tpl:
-                    salutation = env.from_string(sal_tpl).render(**context)
-                else:
-                    salutation = ""
-                context["salutation"] = salutation
-
-                html = template.render(**context)
-            except Exception as e:
-                log.error("Render error for %s: %s", row["email"], e)
-                q.task_done()
-                idx += 1
-                continue
-
-            if stored_subject:
-                rendered_subject = env.from_string(stored_subject).render(**context)
-            else:
-                rendered_subject = None
-            extracted_subject = _extract_subject(html)
-            final_subject = extracted_subject or rendered_subject or subject_line or defaults.get("subject_line", "")
-            cc_value = None
-            if cc_column:
-                val = row.get(cc_column)
-                if pd.notna(val) and str(val).strip():
-                    cc_value = str(val).strip()
-
-            send_with_outlook(
-                row=row,
-                html_body=html,
-                subject=final_subject,
-                cc=cc_value,
-                attachments_dir=paths["attachments"],
-                send_time=campaign_start,
-                delay_seconds=delay,
-                index=idx,
-                account_name=account,
-                dry_run=dry_run,
-                send_now_mode=send_now_mode,
+            lang = (
+                str(row.get(language_column, "")).lower().strip()
+                if language_column in leads.columns
+                else ""
             )
-            
+
+            # determine languages and hour offsets for this row
+            if lang == "ch":
+                plan = [("de", 0), ("it", 1), ("fr", 2), ("en", 3)]
+                follow_up = False
+            else:
+                plan = [(lang, 0)] if lang else [("", 0)]
+                follow_up = lang not in ("en", "de", "")
+
+            first_context = None
+            for lang_code, hour_offset in plan:
+                if (
+                    template_column
+                    and template_column in leads.columns
+                    and pd.notna(row.get(template_column, None))
+                ):
+                    tpl_name = str(row[template_column]).strip()
+                else:
+                    tpl_name = (
+                        f"{template_base}_{lang_code}.html" if lang_code else f"{template_base}.html"
+                    )
+                template_data = get_template(tpl_name)
+                lang_used = lang_code
+                if not template_data and lang_code != "en":
+                    template_data = get_template(f"{template_base}_en.html")
+                    lang_used = "en"
+                    follow_up = False
+                if not template_data:
+                    log.error(
+                        "Template %s not found for %s; skipping", tpl_name, row["email"]
+                    )
+                    continue
+
+                template, stored_subject, tpl_name_sal, tpl_generic_sal = template_data
+                try:
+                    context = {
+                        "vorname": row.get("vorname", ""),
+                        "nachname": row.get("nachname", ""),
+                        "company": row.get("company", ""),
+                        "title": row.get("title", ""),
+                        "language": lang_used or row.get(language_column, ""),
+                    }
+
+                    sal_tpl = tpl_name_sal if row.get("use_named_salutation") else tpl_generic_sal
+                    if sal_tpl:
+                        salutation = env.from_string(sal_tpl).render(**context)
+                    else:
+                        salutation = ""
+                    context["salutation"] = salutation
+
+                    html = template.render(**context)
+                except Exception as e:
+                    log.error("Render error for %s: %s", row["email"], e)
+                    continue
+
+                if stored_subject:
+                    rendered_subject = env.from_string(stored_subject).render(**context)
+                else:
+                    rendered_subject = None
+                extracted_subject = _extract_subject(html)
+                final_subject = extracted_subject or rendered_subject or subject_line or defaults.get("subject_line", "")
+                cc_value = None
+                if cc_column:
+                    val = row.get(cc_column)
+                    if pd.notna(val) and str(val).strip():
+                        cc_value = str(val).strip()
+
+                # compute time
+                if campaign_start is None:
+                    base_time = datetime.now(tz)
+                else:
+                    base_time = campaign_start
+                if hour_offset == 0 and campaign_start is None:
+                    send_time = None
+                    send_mode = True
+                else:
+                    send_time = base_time + timedelta(hours=hour_offset)
+                    send_mode = False
+
+                send_with_outlook(
+                    row=row,
+                    html_body=html,
+                    subject=final_subject,
+                    cc=cc_value,
+                    attachments_dir=paths["attachments"],
+                    send_time=send_time,
+                    delay_seconds=delay,
+                    index=idx,
+                    account_name=account,
+                    dry_run=dry_run,
+                    send_now_mode=send_mode,
+                )
+
+                if hour_offset == 0 and first_context is None:
+                    first_context = context
+
+            if follow_up:
+                tpl_name = f"{template_base}_en.html"
+                template_data = get_template(tpl_name)
+                if template_data:
+                    template, stored_subject, tpl_name_sal, tpl_generic_sal = template_data
+                    ctx = (first_context or {}).copy()
+                    ctx["language"] = "en"
+                    html = template.render(**ctx)
+                    if stored_subject:
+                        rendered_subject = env.from_string(stored_subject).render(**ctx)
+                    else:
+                        rendered_subject = None
+                    extracted_subject = _extract_subject(html)
+                    final_subject = extracted_subject or rendered_subject or subject_line or defaults.get("subject_line", "")
+                    if campaign_start is None:
+                        base_time = datetime.now(tz)
+                    else:
+                        base_time = campaign_start
+                    send_time = base_time + timedelta(hours=1)
+                    send_with_outlook(
+                        row=row,
+                        html_body=html,
+                        subject=final_subject,
+                        cc=cc_value,
+                        attachments_dir=paths["attachments"],
+                        send_time=send_time,
+                        delay_seconds=delay,
+                        index=idx,
+                        account_name=account,
+                        dry_run=dry_run,
+                        send_now_mode=False,
+                    )
+
             if send_now_mode and not dry_run:
                 time.sleep(delay)
+
             q.task_done()
             idx += 1
 
