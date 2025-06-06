@@ -6,6 +6,7 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 attachments/
+templates/
 leads/*.xlsx
 archive/
 # packages

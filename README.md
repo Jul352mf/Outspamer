@@ -37,7 +37,7 @@ This project provides a small command line utility for sending personalized emai
    folders are ignored by git and therefore not present after cloning:
 
    ```bash
-   mkdir -p leads attachments
+   mkdir -p leads attachments templates
    ```
 
 ## Configuration
