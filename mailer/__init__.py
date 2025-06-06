@@ -11,6 +11,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from zoneinfo import ZoneInfo
+try:
+    from tqdm import tqdm
+except Exception:  # pragma: no cover - tqdm is optional
+    tqdm = None
 
 log = logging.getLogger(__name__)
 cfg = load()
@@ -84,6 +88,7 @@ def send_campaign(
     language_column: str | None = None,
     cc_column: str | None = None,
     dry_run: bool = False,
+    show_progress: bool = False,
 ):
     paths = cfg["paths"]
     defaults = cfg["defaults"]
@@ -142,6 +147,99 @@ def send_campaign(
         campaign_start = None
         send_now_mode = True
     delay = float(defaults["delay_seconds"])
+
+    records: list[dict] = []
+
+    # expand semi-colon separated e-mail cells
+    if "email" in leads.columns:
+        leads["email_list"] = leads["email"].fillna("").apply(
+            lambda v: [e.strip() for e in str(v).split(";") if e.strip()]
+        )
+    else:
+        raise SystemExit("Excel missing 'email' column")
+
+    def first_name(rows) -> str | None:
+        for _, r in rows.iterrows():
+            v = r.get("vorname")
+            if pd.notna(v) and str(v).strip():
+                return str(v).strip()
+        return None
+
+    if "company" in leads.columns:
+        for company, group in leads.groupby("company"):
+            all_emails: list[str] = []
+            for _, r in group.iterrows():
+                all_emails.extend(r["email_list"])
+            if not all_emails:
+                continue
+
+            fname = first_name(group)
+            base = group.iloc[0].to_dict()
+            name_row = None
+            if fname:
+                for _, r in group.iterrows():
+                    v = r.get("vorname")
+                    if pd.notna(v) and str(v).strip():
+                        name_row = r.to_dict()
+                        break
+
+            if len(all_emails) > cc_threshold:
+                first = True
+                for email in all_emails:
+                    rec = (name_row if first and name_row else base).copy()
+                    rec["email"] = email
+                    rec["use_named_salutation"] = bool(fname) and first
+                    if not rec.get("vorname"):
+                        rec["vorname"] = fname if first and fname else ""
+                    records.append(rec)
+                    first = False
+            else:
+                rec = (name_row or base).copy()
+                rec["email"] = all_emails[0]
+                extra_cc = ";".join(all_emails[1:]) if len(all_emails) > 1 else None
+                if extra_cc:
+                    if rec.get("cc"):
+                        rec["cc"] = f"{rec['cc']};{extra_cc}"
+                    else:
+                        rec["cc"] = extra_cc
+                rec["use_named_salutation"] = bool(fname)
+                if not rec.get("vorname"):
+                    rec["vorname"] = fname or ""
+                records.append(rec)
+    else:
+        for _, row in leads.iterrows():
+            emails = row["email_list"]
+            if not emails:
+                continue
+
+            fname = row.get("vorname")
+            fname = str(fname).strip() if pd.notna(fname) and str(fname).strip() else None
+            if len(emails) > cc_threshold:
+                first = True
+                for email in emails:
+                    rec = row.to_dict()
+                    rec["email"] = email
+                    rec["use_named_salutation"] = bool(fname) and first
+                    rec["vorname"] = fname if first and fname else ""
+                    records.append(rec)
+                    first = False
+            else:
+                rec = row.to_dict()
+                rec["email"] = emails[0]
+                extra_cc = ";".join(emails[1:]) if len(emails) > 1 else None
+                if extra_cc:
+                    if rec.get("cc"):
+                        rec["cc"] = f"{rec['cc']};{extra_cc}"
+                    else:
+                        rec["cc"] = extra_cc
+                # keep existing cc if no additional recipients
+                rec["use_named_salutation"] = bool(fname)
+                rec["vorname"] = fname or ""
+                records.append(rec)
+
+    total_records = len(records)
+
+    summary = {"emails": 0, "items": total_records}
 
     # worker with queue
     q = queue.Queue()
@@ -252,6 +350,7 @@ def send_campaign(
                     dry_run=dry_run,
                     send_now_mode=send_mode,
                 )
+                summary["emails"] += 1
 
                 if hour_offset == 0 and first_context is None:
                     first_context = context
@@ -288,103 +387,30 @@ def send_campaign(
                         dry_run=dry_run,
                         send_now_mode=False,
                     )
+                    summary["emails"] += 1
 
             if send_now_mode and not dry_run:
                 time.sleep(delay)
 
             q.task_done()
             idx += 1
+            if progress:
+                progress.update(1)
 
     t = threading.Thread(target=worker, daemon=True)
+    progress = None
+    if show_progress and tqdm is not None:
+        progress = tqdm(total=total_records, desc="Campaign", unit="email")
     t.start()
 
-    # expand semi-colon separated e-mail cells
-    if "email" in leads.columns:
-        leads["email_list"] = leads["email"].fillna("").apply(
-            lambda v: [e.strip() for e in str(v).split(";") if e.strip()]
-        )
-    else:
-        raise SystemExit("Excel missing 'email' column")
-
-    def first_name(rows) -> str | None:
-        for _, r in rows.iterrows():
-            v = r.get("vorname")
-            if pd.notna(v) and str(v).strip():
-                return str(v).strip()
-        return None
-
-    if "company" in leads.columns:
-        for company, group in leads.groupby("company"):
-            all_emails: list[str] = []
-            for _, r in group.iterrows():
-                all_emails.extend(r["email_list"])
-            if not all_emails:
-                continue
-
-            fname = first_name(group)
-            base = group.iloc[0].to_dict()
-            name_row = None
-            if fname:
-                for _, r in group.iterrows():
-                    v = r.get("vorname")
-                    if pd.notna(v) and str(v).strip():
-                        name_row = r.to_dict()
-                        break
-
-            if len(all_emails) > cc_threshold:
-                first = True
-                for email in all_emails:
-                    rec = (name_row if first and name_row else base).copy()
-                    rec["email"] = email
-                    rec["use_named_salutation"] = bool(fname) and first
-                    if not rec.get("vorname"):
-                        rec["vorname"] = fname if first and fname else ""
-                    q.put(rec)
-                    first = False
-            else:
-                rec = (name_row or base).copy()
-                rec["email"] = all_emails[0]
-                extra_cc = ";".join(all_emails[1:]) if len(all_emails) > 1 else None
-                if extra_cc:
-                    if rec.get("cc"):
-                        rec["cc"] = f"{rec['cc']};{extra_cc}"
-                    else:
-                        rec["cc"] = extra_cc
-                rec["use_named_salutation"] = bool(fname)
-                if not rec.get("vorname"):
-                    rec["vorname"] = fname or ""
-                q.put(rec)
-    else:
-        for _, row in leads.iterrows():
-            emails = row["email_list"]
-            if not emails:
-                continue
-
-            fname = row.get("vorname")
-            fname = str(fname).strip() if pd.notna(fname) and str(fname).strip() else None
-            if len(emails) > cc_threshold:
-                first = True
-                for email in emails:
-                    rec = row.to_dict()
-                    rec["email"] = email
-                    rec["use_named_salutation"] = bool(fname) and first
-                    rec["vorname"] = fname if first and fname else ""
-                    q.put(rec)
-                    first = False
-            else:
-                rec = row.to_dict()
-                rec["email"] = emails[0]
-                extra_cc = ";".join(emails[1:]) if len(emails) > 1 else None
-                if extra_cc:
-                    if rec.get("cc"):
-                        rec["cc"] = f"{rec['cc']};{extra_cc}"
-                    else:
-                        rec["cc"] = extra_cc
-                # keep existing cc if no additional recipients
-                rec["use_named_salutation"] = bool(fname)
-                rec["vorname"] = fname or ""
-                q.put(rec)
+    for rec in records:
+        q.put(rec)
     q.put(None)
     q.join()
     t.join()
-    log.info("Campaign finished.")
+
+    if progress:
+        progress.close()
+
+    log.info("Campaign finished. %d emails processed", summary["emails"])
+    return summary

@@ -11,6 +11,7 @@ This project provides a small command line utility for sending personalized emai
 - Optional send scheduling with configurable delays
 - Supports multiple Outlook accounts
 - Simple CLI interface powered by [Typer](https://typer.tiangolo.com)
+- Progress bar and summary output when running campaigns
 
 ## Requirements
 
@@ -101,7 +102,7 @@ HTML templates for different languages can be found in the `templates/` director
 
 ## Notes
 
-An `Archive` folder contains older experiments and is not required for normal operation. When the tool runs it logs activity to `email.log`, which is ignored by git.
+An `Archive` folder contains older experiments and is not required for normal operation. When the tool runs it logs activity exclusively to `email.log`, which is ignored by git.
 
 
 ## License
