@@ -21,10 +21,17 @@ def load():
             "template_base": "email",
             "cc_threshold": 3,
             "subject_line": "default subject",
+            "account": "",
+            "template_column": "template",
+            "language_column": "language",
+            "cc_column": "cc",
         },
     }
     if TOML.exists():
-        cfg.update(tomllib.loads(TOML.read_text()))
+        data = tomllib.loads(TOML.read_text())
+        for section in ("paths", "defaults"):
+            if section in data:
+                cfg[section].update(data[section])
     # env overrides
     for envvar, pathkey in [
         ("ATTACHMENTS_DIR", "attachments"),
@@ -41,6 +48,10 @@ def load():
         ("TEMPLATE_BASE", "template_base"),
         ("CC_THRESHOLD", "cc_threshold"),
         ("SUBJECT_LINE", "subject_line"),
+        ("DEFAULT_ACCOUNT", "account"),
+        ("TEMPLATE_COLUMN", "template_column"),
+        ("LANGUAGE_COLUMN", "language_column"),
+        ("CC_COLUMN", "cc_column"),
     ]:
         if os.getenv(envvar):
             cfg["defaults"][key] = os.getenv(envvar)

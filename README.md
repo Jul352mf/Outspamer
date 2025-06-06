@@ -50,7 +50,18 @@ sheet_name        = "Sheet1"
 timezone          = "Europe/Zurich"
 default_leads_file = "sample_leads.xlsx"
 template_base     = "email"
+account           = ""
+template_column   = "template"
+language_column   = "language"
+cc_column         = "cc"
 ```
+
+The optional `account` field selects a specific Outlook account by display name
+or SMTP address. `template_column` allows specifying per-row template names. If
+absent, the template is built from `template_base` and the value in
+`language_column`. `cc_column` can hold additional recipients; if omitted,
+addresses separated by semicolons in the `email` column will be used.
+
 
 ## Usage
 
