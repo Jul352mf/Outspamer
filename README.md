@@ -33,6 +33,13 @@ This project provides a small command line utility for sending personalized emai
    python -m pip install -e .
    ```
 
+3. Create the working directories for your own leads and any attachments. These
+   folders are ignored by git and therefore not present after cloning:
+
+   ```bash
+   mkdir -p leads attachments
+   ```
+
 ## Configuration
 
 The application reads basic paths and defaults from `settings.toml`. You can adjust directories for attachments, templates and leads as well as the default delay between mails. Environment variables with the same names can override the TOML settings.
@@ -101,7 +108,7 @@ HTML templates for different languages can be found in the `templates/` director
 
 ## Notes
 
-An `Archive` folder contains older experiments and is not required for normal operation. When the tool runs it logs activity to `email.log`, which is ignored by git.
+An `Archive` folder contains older experiments and is not required for normal operation. Real leads and attachments are not included in the repository, so create `leads/` and `attachments/` yourself. When the tool runs it logs activity to `email.log`, which is ignored by git.
 
 
 ## License
