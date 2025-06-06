@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import sys
 
 import typer
 from mailer import send_campaign
@@ -9,7 +8,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-8s %(message)s",
     handlers=[
-        logging.StreamHandler(sys.stdout),
         logging.handlers.RotatingFileHandler(
             "email.log", maxBytes=1_000_000, backupCount=3
         ),
@@ -39,7 +37,7 @@ def run(
     ),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Render but not send"),
 ):
-    send_campaign(
+    summary = send_campaign(
         excel_path=leads,
         subject_line=subject,
         template_base=template_base,
@@ -49,7 +47,9 @@ def run(
         language_column=language_column,
         cc_column=cc_column,
         dry_run=dry_run,
+        show_progress=True,
     )
+    typer.echo(f"Processed {summary['emails']} emails.")
 
 
 if __name__ == "__main__":
