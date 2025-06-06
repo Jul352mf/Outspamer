@@ -57,7 +57,7 @@ template_base     = "email"
 After installation the `outspamer` command becomes available:
 
 ```bash
-outspamer run --subject "Subject line" \
+outspamer --subject "Subject line" \
     --leads path/to/leads.xlsx \
     --template-base email \
     --sheet Sheet1

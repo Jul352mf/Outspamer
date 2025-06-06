@@ -58,9 +58,35 @@ def test_send_campaign_calls_outlook(monkeypatch, tmp_path):
     (tpl_dir / "email.html").write_text("hello {{ salutation }}")
     monkeypatch.setitem(mailer.cfg["paths"], "templates", str(tpl_dir))
 
-    send_campaign(excel_path=str(xls), subject_line="Hi", dry_run=True)
+    monkeypatch.setitem(mailer.cfg["defaults"], "subject_line", "Default")
+
+    send_campaign(excel_path=str(xls), subject_line=None, dry_run=True)
     assert len(calls) == 1
 
+
+def test_template_subject_overrides(monkeypatch, tmp_path):
+    xls = tmp_path / "l.xlsx"
+    df = pd.DataFrame({"email": ["a@example.com"], "vorname": ["Foo"], "cc": ["c@example.com"]})
+    df.to_excel(xls, index=False)
+
+    captured = {}
+
+    def fake_send_with_outlook(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setitem(mailer.cfg["defaults"], "default_leads_file", str(xls))
+    monkeypatch.setitem(mailer.cfg["defaults"], "subject_line", "Default")
+
+    tpl_dir = tmp_path / "tpl2"
+    tpl_dir.mkdir()
+    (tpl_dir / "email.html").write_text("<title>Hello {{ vorname }}</title>")
+    monkeypatch.setitem(mailer.cfg["paths"], "templates", str(tpl_dir))
+
+    send_campaign(excel_path=str(xls), subject_line="CLI", dry_run=True)
+    assert captured["subject"] == "Hello Foo"
+    assert captured["cc"] == "c@example.com"
+    
 
 def test_cc_threshold(monkeypatch, tmp_path):
     xls = tmp_path / "l2.xlsx"

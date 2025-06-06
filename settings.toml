@@ -8,5 +8,6 @@ delay_seconds   = 2.5
 sheet_name      = "Sheet1"
 timezone        = "Europe/Zurich"
 default_leads_file = "sample_leads.xlsx"
-template_base   = "email"
+template_base   = "Mukran_template_notion_export"
 cc_threshold   = 3
+subject_line    = "Default Subject Settings"

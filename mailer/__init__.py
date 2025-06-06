@@ -2,6 +2,7 @@ import logging
 import queue
 import threading
 import time
+import re
 from .settings import load
 from .outlook import send_with_outlook
 from .template_utils import process_template_file, extract_subject_and_body
@@ -26,6 +27,7 @@ _COLUMN_MAP = {
     "sprache": "language",
     "language": "language",
     "template": "template",
+    "cc": "cc",
 }
 
 
@@ -58,17 +60,27 @@ def _resolve_leads_path(user_path: str | Path | None) -> Path:
         return candidate.resolve()
     raise FileNotFoundError(f"{user_path} (looked in cwd and {cfg['paths']['leads']})")
 
+def _extract_subject(html: str) -> str | None:
+    """Return subject from rendered HTML, if found."""
+    match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"Subject:\s*(.*?)(?:<|\n)", html, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
 
 def send_campaign(
     *,
     excel_path: str | None = None,
-    subject_line: str,
+    subject_line: str | None = None,
     template_base: str | None = None,
     sheet_name: str | None = None,
     send_at: str | None = "now",
     account: str | None = None,
     template_column: str | None = "template",
     language_column: str = "language",
+    cc_column: str | None = "cc",
     dry_run: bool = False,
 ):
     paths = cfg["paths"]
@@ -185,19 +197,27 @@ def send_campaign(
                 idx += 1
                 continue
 
+            tpl_subject = _extract_subject(html)
+            final_subject = tpl_subject or subject_line or defaults.get("subject_line", "")
+            cc_value = None
+            if cc_column and cc_column in leads.columns:
+                val = row.get(cc_column)
+                if pd.notna(val) and str(val).strip():
+                    cc_value = str(val).strip()
+
             send_with_outlook(
                 row=row,
                 html_body=html,
-                subject=tpl_subject or subject_line,
+                subject=final_subject,
+                cc=cc_value,
                 attachments_dir=paths["attachments"],
                 send_time=campaign_start,
                 delay_seconds=delay,
                 index=idx,
                 account_name=account,
                 dry_run=dry_run,
-                send_now_mode=send_now_mode,
-                cc=row.get("cc"),
             )
+            
             if send_now_mode and not dry_run:
                 time.sleep(delay)
             q.task_done()

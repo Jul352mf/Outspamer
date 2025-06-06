@@ -20,6 +20,7 @@ def load():
             "default_leads_file": "",
             "template_base": "email",
             "cc_threshold": 3,
+            "subject_line": "default subject",
         },
     }
     if TOML.exists():
@@ -39,6 +40,7 @@ def load():
         ("DEFAULT_LEADS_FILE", "default_leads_file"),
         ("TEMPLATE_BASE", "template_base"),
         ("CC_THRESHOLD", "cc_threshold"),
+        ("SUBJECT_LINE", "subject_line"),
     ]:
         if os.getenv(envvar):
             cfg["defaults"][key] = os.getenv(envvar)
