@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <title>Outspamer</title>
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <h1 class="mb-4">Outspamer Web Interface</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="post" enctype="multipart/form-data" class="card p-4 bg-white shadow-sm">
+      <div class="mb-3">
+        <label class="form-label">Subject</label>
+        <input type="text" name="subject" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Leads Excel file</label>
+        <input type="file" name="leads" class="form-control">
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Template base</label>
+          <input type="text" name="template_base" class="form-control" placeholder="email">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Sheet name</label>
+          <input type="text" name="sheet" class="form-control" placeholder="Sheet1">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Send at</label>
+          <input type="text" name="send_at" class="form-control" placeholder="now or 2024-04-01 12:00">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Account</label>
+          <input type="text" name="account" class="form-control" placeholder="Outlook account">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Language column</label>
+          <input type="text" name="language_column" class="form-control" value="language">
+        </div>
+        <div class="col-md-6 mb-3 form-check align-self-end">
+          <input type="checkbox" name="dry_run" class="form-check-input" id="dry_run">
+          <label for="dry_run" class="form-check-label">Dry run</label>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+  </div>
+</body>
+</html>
