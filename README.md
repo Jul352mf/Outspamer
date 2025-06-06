@@ -76,6 +76,17 @@ outspamer --subject "Subject line" \
 
 Use `--help` for a complete list of options. For testing you can add `--dry-run` to render mails without sending them.
 
+### Web Interface
+
+You can also control the campaign through a small Flask based web app. Run
+
+```bash
+python webapp.py
+```
+
+and open `http://localhost:5000` in your browser. The form lets you upload the
+Excel leads file, pick templates and other options with a more friendly UI.
+
 ## Testing
 
 Run `pytest` to execute the unit tests:

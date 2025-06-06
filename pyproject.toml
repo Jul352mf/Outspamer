@@ -13,6 +13,7 @@ license = "MIT"
 
 [project.scripts]
 outspamer = "send_emails:app"
+outspamer-web = "webapp:app"
 
 [tool.setuptools]
 py-modules = ["send_emails"]

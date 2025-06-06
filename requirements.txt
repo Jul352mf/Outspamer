@@ -5,4 +5,5 @@ pywin32; platform_system == "Windows"
 openpyxl
 beautifulsoup4
 pytz
+Flask
 
