@@ -4,6 +4,7 @@ import threading
 import time
 from .settings import load
 from .outlook import send_with_outlook
+from .template_utils import process_template_file, extract_subject_and_body
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -92,6 +93,25 @@ def send_campaign(
         autoescape=True,
     )
 
+    cc_threshold = int(defaults.get("cc_threshold", 3))
+
+    template_cache: dict[str, tuple] = {}
+
+    def get_template(name: str):
+        if name not in template_cache:
+            path = Path(paths["templates"]) / name
+            if not path.exists():
+                return None
+            process_template_file(path)
+            subj, name_sal, generic_sal, body = extract_subject_and_body(path)
+            template_cache[name] = (
+                env.from_string(body),
+                subj,
+                name_sal,
+                generic_sal,
+            )
+        return template_cache[name]
+
     # time & pacing
     tz = ZoneInfo(defaults["timezone"])
     if send_at and send_at != "now":
@@ -133,23 +153,32 @@ def send_campaign(
                 tpl_name = (
                     f"{template_base}_{lang}.html" if lang else f"{template_base}.html"
                 )
-            tpl_path = Path(paths["templates"]) / tpl_name
-            if not tpl_path.exists():
+            template_data = get_template(tpl_name)
+            if not template_data:
                 log.error(
                     "Template %s not found for %s; skipping", tpl_name, row["email"]
                 )
                 q.task_done()
                 idx += 1
                 continue
-            template = env.get_template(tpl_name)
+            template, tpl_subject, tpl_name_sal, tpl_generic_sal = template_data
             try:
-                html = template.render(
-                    vorname=row["vorname"],
-                    nachname=row.get("nachname", ""),
-                    company=row.get("company", ""),
-                    title=row.get("title", ""),
-                    language=row.get(language_column, ""),
-                )
+                context = {
+                    "vorname": row.get("vorname", ""),
+                    "nachname": row.get("nachname", ""),
+                    "company": row.get("company", ""),
+                    "title": row.get("title", ""),
+                    "language": row.get(language_column, ""),
+                }
+
+                sal_tpl = tpl_name_sal if row.get("use_named_salutation") else tpl_generic_sal
+                if sal_tpl:
+                    salutation = env.from_string(sal_tpl).render(**context)
+                else:
+                    salutation = ""
+                context["salutation"] = salutation
+
+                html = template.render(**context)
             except Exception as e:
                 log.error("Render error for %s: %s", row["email"], e)
                 q.task_done()
@@ -159,7 +188,7 @@ def send_campaign(
             send_with_outlook(
                 row=row,
                 html_body=html,
-                subject=subject_line,
+                subject=tpl_subject or subject_line,
                 attachments_dir=paths["attachments"],
                 send_time=campaign_start,
                 delay_seconds=delay,
@@ -167,6 +196,7 @@ def send_campaign(
                 account_name=account,
                 dry_run=dry_run,
                 send_now_mode=send_now_mode,
+                cc=row.get("cc"),
             )
             if send_now_mode and not dry_run:
                 time.sleep(delay)
@@ -176,8 +206,81 @@ def send_campaign(
     t = threading.Thread(target=worker, daemon=True)
     t.start()
 
-    for _, row in leads.iterrows():
-        q.put(row.copy())
+    # expand semi-colon separated e-mail cells
+    if "email" in leads.columns:
+        leads["email_list"] = leads["email"].fillna("").apply(
+            lambda v: [e.strip() for e in str(v).split(";") if e.strip()]
+        )
+    else:
+        raise SystemExit("Excel missing 'email' column")
+
+    def first_name(rows) -> str | None:
+        for _, r in rows.iterrows():
+            v = r.get("vorname")
+            if pd.notna(v) and str(v).strip():
+                return str(v).strip()
+        return None
+
+    if "company" in leads.columns:
+        for company, group in leads.groupby("company"):
+            all_emails: list[str] = []
+            for _, r in group.iterrows():
+                all_emails.extend(r["email_list"])
+            if not all_emails:
+                continue
+
+            fname = first_name(group)
+            base = group.iloc[0].to_dict()
+            name_row = None
+            if fname:
+                for _, r in group.iterrows():
+                    v = r.get("vorname")
+                    if pd.notna(v) and str(v).strip():
+                        name_row = r.to_dict()
+                        break
+
+            if len(all_emails) > cc_threshold:
+                first = True
+                for email in all_emails:
+                    rec = (name_row if first and name_row else base).copy()
+                    rec["email"] = email
+                    rec["use_named_salutation"] = bool(fname) and first
+                    if not rec.get("vorname"):
+                        rec["vorname"] = fname if first and fname else ""
+                    q.put(rec)
+                    first = False
+            else:
+                rec = (name_row or base).copy()
+                rec["email"] = all_emails[0]
+                rec["cc"] = ";".join(all_emails[1:]) if len(all_emails) > 1 else None
+                rec["use_named_salutation"] = bool(fname)
+                if not rec.get("vorname"):
+                    rec["vorname"] = fname or ""
+                q.put(rec)
+    else:
+        for _, row in leads.iterrows():
+            emails = row["email_list"]
+            if not emails:
+                continue
+
+            fname = row.get("vorname")
+            fname = str(fname).strip() if pd.notna(fname) and str(fname).strip() else None
+            if len(emails) > cc_threshold:
+                first = True
+                for email in emails:
+                    rec = row.to_dict()
+                    rec["email"] = email
+                    rec["use_named_salutation"] = bool(fname) and first
+                    rec["vorname"] = fname if first and fname else ""
+                    q.put(rec)
+                    first = False
+            else:
+                rec = row.to_dict()
+                rec["email"] = emails[0]
+                rec["cc"] = ";".join(emails[1:]) if len(emails) > 1 else None
+                rec["use_named_salutation"] = bool(fname)
+                rec["vorname"] = fname or ""
+                q.put(rec)
     q.put(None)
     q.join()
     t.join()
