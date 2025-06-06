@@ -1,5 +1,5 @@
 [paths]
-attachments = "attachments"
+attachments = "attachments/wood"
 templates   = "templates"
 leads       = "leads"
 
@@ -7,8 +7,8 @@ leads       = "leads"
 delay_seconds   = 2.5
 sheet_name      = "Sheet1"
 timezone        = "Europe/Zurich"
-default_leads_file = "LL_Ready.xlsx"
-template_base   = "Mukran_template_notion_export"
+default_leads_file = "mulch_leads.xlsx"
+template_base   = "Mulch"
 account         = ""
 template_column = "template"
 language_column = "language"
