@@ -2,74 +2,20 @@ import logging
 import queue
 import threading
 import time
-import re
-from .settings import load
-from .outlook import send_with_outlook
-from .template_utils import process_template_file, extract_subject_and_body
-import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
+
+import pandas as pd
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from zoneinfo import ZoneInfo
 
+from .settings import Config, load
+from .outlook import send_with_outlook
+from .template_utils import process_template_file, extract_subject_and_body
+from .utils import normalize_columns, resolve_leads_path, extract_subject
+
 log = logging.getLogger(__name__)
-cfg = load()
-
-# synonyms mapping for column names
-_COLUMN_MAP = {
-    "email": "email",
-    "email adresse": "email",
-    "vorname": "vorname",
-    "nachname": "nachname",
-    "company": "company",
-    "firma": "company",
-    "title": "title",
-    "sprache": "language",
-    "language": "language",
-    "template": "template",
-    "cc": "cc",
-}
-
-
-def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-    new_cols = []
-    for col in df.columns:
-        key = col.strip().lower()
-        key = _COLUMN_MAP.get(key, key)
-        new_cols.append(key)
-    df.columns = new_cols
-    return df
-
-
-def _resolve_leads_path(user_path: str | Path | None) -> Path:
-    default_path = cfg["defaults"]["default_leads_file"]
-    if user_path is None or user_path == "":
-        if not default_path:
-            raise FileNotFoundError("No leads file provided and no default set.")
-        user_path = default_path
-    p = Path(user_path)
-    if p.is_absolute():
-        if p.exists():
-            return p
-        raise FileNotFoundError(p)
-    # relative
-    if p.exists():
-        return p.resolve()
-    candidate = Path(cfg["paths"]["leads"]) / p
-    if candidate.exists():
-        return candidate.resolve()
-    raise FileNotFoundError(f"{user_path} (looked in cwd and {cfg['paths']['leads']})")
-
-
-def _extract_subject(html: str) -> str | None:
-    """Return subject from rendered HTML, if found."""
-    match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    match = re.search(r"Subject:\s*(.*?)(?:<|\n)", html, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    return None
+cfg: Config = load()
 
 
 def send_campaign(
@@ -85,19 +31,21 @@ def send_campaign(
     cc_column: str | None = None,
     dry_run: bool = False,
 ):
-    paths = cfg["paths"]
-    defaults = cfg["defaults"]
-    template_base = template_base or defaults["template_base"]
-    account = account or (defaults.get("account") or None)
-    template_column = template_column if template_column is not None else defaults.get("template_column")
-    language_column = language_column or defaults.get("language_column", "language")
-    cc_column = cc_column if cc_column is not None else defaults.get("cc_column")
+    paths = cfg.paths
+    defaults = cfg.defaults
+    template_base = template_base or defaults.template_base
+    account = account or (defaults.account or None)
+    template_column = (
+        template_column if template_column is not None else defaults.template_column
+    )
+    language_column = language_column or defaults.language_column
+    cc_column = cc_column if cc_column is not None else defaults.cc_column
 
-    xls = _resolve_leads_path(excel_path)
-    sheet = sheet_name or defaults["sheet_name"]
+    xls = resolve_leads_path(cfg, excel_path)
+    sheet = sheet_name or defaults.sheet_name
 
     leads = pd.read_excel(xls, sheet_name=sheet)
-    leads = _normalize_columns(leads)
+    leads = normalize_columns(leads)
 
     required = {"email", "vorname"}
     missing = required - set(leads.columns)
@@ -106,18 +54,18 @@ def send_campaign(
 
     # prepare Jinja2 env
     env = Environment(
-        loader=FileSystemLoader(paths["templates"]),
+        loader=FileSystemLoader(paths.templates),
         undefined=StrictUndefined,
         autoescape=True,
     )
 
-    cc_threshold = int(defaults.get("cc_threshold", 3))
+    cc_threshold = int(defaults.cc_threshold)
 
     template_cache: dict[str, tuple] = {}
 
     def get_template(name: str):
         if name not in template_cache:
-            path = Path(paths["templates"]) / name
+            path = Path(paths.templates) / name
             if not path.exists():
                 return None
             process_template_file(path)
@@ -131,7 +79,7 @@ def send_campaign(
         return template_cache[name]
 
     # time & pacing
-    tz = ZoneInfo(defaults["timezone"])
+    tz = ZoneInfo(defaults.timezone)
     if send_at and send_at != "now":
         start = datetime.fromisoformat(send_at)
         if start.tzinfo is None:
@@ -141,7 +89,7 @@ def send_campaign(
     else:
         campaign_start = None
         send_now_mode = True
-    delay = float(defaults["delay_seconds"])
+    delay = float(defaults.delay_seconds)
 
     # worker with queue
     q = queue.Queue()
@@ -219,8 +167,13 @@ def send_campaign(
                     rendered_subject = env.from_string(stored_subject).render(**context)
                 else:
                     rendered_subject = None
-                extracted_subject = _extract_subject(html)
-                final_subject = extracted_subject or rendered_subject or subject_line or defaults.get("subject_line", "")
+                extracted_subject = extract_subject(html)
+                final_subject = (
+                    extracted_subject
+                    or rendered_subject
+                    or subject_line
+                    or defaults.subject_line
+                )
                 cc_value = None
                 if cc_column:
                     val = row.get(cc_column)
@@ -244,7 +197,7 @@ def send_campaign(
                     html_body=html,
                     subject=final_subject,
                     cc=cc_value,
-                    attachments_dir=paths["attachments"],
+                    attachments_dir=paths.attachments,
                     send_time=send_time,
                     delay_seconds=delay,
                     index=idx,
@@ -268,8 +221,13 @@ def send_campaign(
                         rendered_subject = env.from_string(stored_subject).render(**ctx)
                     else:
                         rendered_subject = None
-                    extracted_subject = _extract_subject(html)
-                    final_subject = extracted_subject or rendered_subject or subject_line or defaults.get("subject_line", "")
+                    extracted_subject = extract_subject(html)
+                    final_subject = (
+                        extracted_subject
+                        or rendered_subject
+                        or subject_line
+                        or defaults.subject_line
+                    )
                     if campaign_start is None:
                         base_time = datetime.now(tz)
                     else:
@@ -280,7 +238,7 @@ def send_campaign(
                         html_body=html,
                         subject=final_subject,
                         cc=cc_value,
-                        attachments_dir=paths["attachments"],
+                        attachments_dir=paths.attachments,
                         send_time=send_time,
                         delay_seconds=delay,
                         index=idx,

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 from pathlib import Path
 import os
 import tomllib
@@ -6,41 +9,61 @@ ROOT = Path(__file__).resolve().parent.parent
 TOML = ROOT / "settings.toml"
 
 
-def load():
-    cfg = {
-        "paths": {
-            "attachments": str(ROOT / "attachments"),
-            "templates": str(ROOT / "templates"),
-            "leads": str(ROOT / "leads"),
-        },
-        "defaults": {
-            "delay_seconds": 2.5,
-            "sheet_name": "Sheet1",
-            "timezone": "Europe/Zurich",
-            "default_leads_file": "",
-            "template_base": "email",
-            "cc_threshold": 3,
-            "subject_line": "default subject",
-            "account": "",
-            "template_column": "template",
-            "language_column": "language",
-            "cc_column": "cc",
-        },
-    }
+@dataclass
+class Paths:
+    attachments: str
+    templates: str
+    leads: str
+
+
+@dataclass
+class Defaults:
+    delay_seconds: float = 2.5
+    sheet_name: str = "Sheet1"
+    timezone: str = "Europe/Zurich"
+    default_leads_file: str = ""
+    template_base: str = "email"
+    cc_threshold: int = 3
+    subject_line: str = "default subject"
+    account: str = ""
+    template_column: str = "template"
+    language_column: str = "language"
+    cc_column: str = "cc"
+
+
+@dataclass
+class Config:
+    paths: Paths
+    defaults: Defaults
+
+
+def load() -> Config:
+    paths = Paths(
+        attachments=str(ROOT / "attachments"),
+        templates=str(ROOT / "templates"),
+        leads=str(ROOT / "leads"),
+    )
+
+    defaults = Defaults()
+
     if TOML.exists():
         data = tomllib.loads(TOML.read_text())
-        for section in ("paths", "defaults"):
-            if section in data:
-                cfg[section].update(data[section])
-    # env overrides
-    for envvar, pathkey in [
+        if "paths" in data:
+            for key, value in data["paths"].items():
+                setattr(paths, key, value)
+        if "defaults" in data:
+            for key, value in data["defaults"].items():
+                setattr(defaults, key, value)
+
+    for envvar, attr in [
         ("ATTACHMENTS_DIR", "attachments"),
         ("TEMPLATES_DIR", "templates"),
         ("LEADS_DIR", "leads"),
     ]:
         if os.getenv(envvar):
-            cfg["paths"][pathkey] = os.getenv(envvar)
-    for envvar, key in [
+            setattr(paths, attr, os.getenv(envvar))
+
+    for envvar, attr in [
         ("MAILER_DELAY", "delay_seconds"),
         ("MAILER_SHEET", "sheet_name"),
         ("MAILER_TZ", "timezone"),
@@ -54,5 +77,6 @@ def load():
         ("CC_COLUMN", "cc_column"),
     ]:
         if os.getenv(envvar):
-            cfg["defaults"][key] = os.getenv(envvar)
-    return cfg
+            setattr(defaults, attr, os.getenv(envvar))
+
+    return Config(paths=paths, defaults=defaults)
