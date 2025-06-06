@@ -2,7 +2,7 @@ import logging
 import pathlib
 import pythoncom
 import win32com.client as win32
-from datetime import datetime
+from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ def send_with_outlook(
         return
 
     # Schedule deferred time
-    schedule_time = send_time + (index * delay_seconds)
+    schedule_time = send_time + timedelta(seconds=index * delay_seconds)
     # Outlook expects naive local datetime
     mail.DeferredDeliveryTime = schedule_time
     mail.Send()

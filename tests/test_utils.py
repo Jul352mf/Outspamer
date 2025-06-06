@@ -58,6 +58,8 @@ def test_send_campaign_calls_outlook(monkeypatch, tmp_path):
     (tpl_dir / "email.html").write_text("hello {{ salutation }}")
     monkeypatch.setitem(mailer.cfg["paths"], "templates", str(tpl_dir))
 
+    monkeypatch.setitem(mailer.cfg["defaults"], "template_base", "email")
+
     monkeypatch.setitem(mailer.cfg["defaults"], "subject_line", "Default")
 
     send_campaign(excel_path=str(xls), subject_line=None, dry_run=True)
