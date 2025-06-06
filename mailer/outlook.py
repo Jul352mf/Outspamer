@@ -35,6 +35,7 @@ def send_with_outlook(
     account_name: str | None = None,
     dry_run: bool = False,
     send_now_mode: bool = False,
+    cc: str | None = None,
 ):
     """Handles a single e‑mail send.
 
@@ -50,7 +51,12 @@ def send_with_outlook(
         afterwards to maintain pacing.
     """
     if dry_run:
-        log.info("DRY-RUN  %s <%s>", row.get("vorname", ""), row.get("email", ""))
+        log.info(
+            "DRY-RUN  %s <%s> cc=%s",
+            row.get("vorname", ""),
+            row.get("email", ""),
+            cc or "",
+        )
         return
 
     pythoncom.CoInitialize()
@@ -62,6 +68,8 @@ def send_with_outlook(
         return
 
     mail.To = row["email"]
+    if cc:
+        mail.CC = cc
     mail.Subject = subject
     mail.HTMLBody = html_body
 
