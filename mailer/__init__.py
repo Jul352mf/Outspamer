@@ -19,6 +19,17 @@ log = logging.getLogger(__name__)
 cfg: Config = load()
 
 
+def safe_str(val):
+    # Handles pandas NaN, None, and leaves normal strings alone
+    if val is None:
+        return ""
+    try:
+        if pd.isna(val):
+            return ""
+    except Exception:
+        pass
+    return str(val)
+
 def send_campaign(
     *,
     excel_path: str | None = None,
@@ -153,12 +164,12 @@ def send_campaign(
                 template, stored_subject, tpl_name_sal, tpl_generic_sal = template_data
                 try:
                     context = {
-                        "vorname": row.get("vorname", ""),
-                        "nachname": row.get("nachname", ""),
-                        "company": row.get("company", ""),
-                        "title": row.get("title", ""),
-                        "language": lang_used or row.get(language_column, ""),
-                    }
+                        "vorname": safe_str(row.get("vorname")),
+                        "nachname": safe_str(row.get("nachname")),
+                        "company": safe_str(row.get("company")),
+                        "title": safe_str(row.get("title")),
+                        "language": safe_str(lang_used or row.get(language_column, "")),                        
+                        }
 
                     sal_tpl = tpl_name_sal if row.get("use_named_salutation") else tpl_generic_sal
                     if sal_tpl:

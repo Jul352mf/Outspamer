@@ -7,6 +7,7 @@ __pycache__/
 .pytest_cache/
 attachments/
 templates/
+attachments_wood/
 leads/*.xlsx
 archive/
 # packages

@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-
+from python_http_client.exceptions import HTTPError
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import (
     Attachment,
@@ -90,5 +90,8 @@ def send_with_sendgrid(
             )
         else:
             log.info("sent (now) -> %s <%s>", row.get("vorname", ""), row["email"])
+    except HTTPError as exc:
+        log.error("SendGrid HTTP %s: %s", exc.status_code, exc.body.decode(), row.get("vorname", ""), row["email"])
     except Exception as exc:
-        log.error("SendGrid error: %s", exc)
+        log.error("SendGrid error: %s", exc, row.get("vorname", ""), row["email"])
+
