@@ -6,7 +6,11 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 attachments/
-templates/
+templates/*
+!templates/email_de.html
+!templates/email_en.html
+!templates/email_fr.html
+!templates/webform.html
 leads/*.xlsx
 archive/
 # packages

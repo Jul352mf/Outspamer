@@ -16,4 +16,5 @@ cc_column       = "cc"
 cc_threshold   = 3
 subject_line    = "Default Subject Settings"
 provider         = "postmark"
-postmark_token   = ""
+POSTMARK_TOKEN= "04556ca9-25d3-415c-a92d-2142a9abf17b"
+POSTMARK_FROM= "jsb@synsol.ch"
