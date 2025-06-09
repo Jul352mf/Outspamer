@@ -43,6 +43,7 @@ def index():
                 account=account,
                 language_column=language_column,
                 dry_run=dry_run,
+                provider="sendgrid",
             )
             flash("Campaign executed successfully!", "success")
         except Exception as e:

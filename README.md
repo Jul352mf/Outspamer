@@ -1,6 +1,6 @@
 # Outspamer
 
-This project provides a small command line utility for sending personalized email campaigns using Microsoft Outlook. Leads are loaded from an Excel spreadsheet and merged into Jinja2-based HTML templates. Mails can be scheduled or sent immediately and optional attachments are automatically added from the configured folder.
+This project provides a small command line utility for sending personalized email campaigns. By default it sends messages through the SendGrid API, but Microsoft Outlook can be used instead on Windows systems. Leads are loaded from an Excel spreadsheet and merged into Jinja2-based HTML templates. Mails can be scheduled or sent immediately and optional attachments are automatically added from the configured folder.
 
 **Important:** This code is intended for controlled outreach and testing. Make sure that any usage complies with local regulations and the terms of your email provider.
 
@@ -9,13 +9,13 @@ This project provides a small command line utility for sending personalized emai
 - Reads contact data from an Excel sheet
 - Language-specific templates using Jinja2
 - Optional send scheduling with configurable delays
-- Supports multiple Outlook accounts
+- Supports multiple Outlook accounts when using the Outlook provider
 - Simple CLI interface powered by [Typer](https://typer.tiangolo.com)
 
 ## Requirements
 
 - Python 3.11 or newer
-- Microsoft Outlook installed on Windows (for the COM interface)
+- Microsoft Outlook installed on Windows (optional, for the Outlook provider)
 - See `requirements.txt` for Python package dependencies
 
 ## Installation
@@ -42,7 +42,7 @@ This project provides a small command line utility for sending personalized emai
 
 ## Configuration
 
-The application reads basic paths and defaults from `settings.toml`. You can adjust directories for attachments, templates and leads as well as the default delay between mails. Environment variables with the same names can override the TOML settings.
+The application reads basic paths and defaults from `settings.toml`. You can adjust directories for attachments, templates and leads as well as the default delay between mails. Environment variables with the same names can override the TOML settings. A `.env` file located in the project root will also be loaded automatically so you can keep secrets like `SENDGRID_API_KEY` out of your shell environment.
 The bundled `sample_leads.xlsx` file contains **fictitious** contact details for testing only.
 
 ```
@@ -63,11 +63,23 @@ language_column   = "language"
 cc_column         = "cc"
 ```
 
-The optional `account` field selects a specific Outlook account by display name
-or SMTP address. `template_column` allows specifying per-row template names. If
-absent, the template is built from `template_base` and the value in
+The optional `account` field selects the sending identity. When using Outlook it
+should match the account display name or SMTP address, while with SendGrid it
+becomes the `from` address. `template_column` allows specifying per-row template
+names. If absent, the template is built from `template_base` and the value in
 `language_column`. `cc_column` can hold additional recipients; if omitted,
 addresses separated by semicolons in the `email` column will be used.
+
+### `.env` example
+
+Create a `.env` file with your SendGrid credentials:
+
+```bash
+SENDGRID_API_KEY=SG.xxxxxx
+SENDGRID_FROM_EMAIL=you@example.com
+```
+
+Values in the `.env` file override those in `settings.toml` but not variables that are already set in the shell environment.
 
 
 ## Usage
@@ -78,7 +90,8 @@ After installation the `outspamer` command becomes available:
 outspamer --subject "Subject line" \
     --leads path/to/leads.xlsx \
     --template-base email \
-    --sheet Sheet1
+    --sheet Sheet1 \
+    --provider sendgrid
 ```
 
 Use `--help` for a complete list of options. For testing you can add `--dry-run` to render mails without sending them.

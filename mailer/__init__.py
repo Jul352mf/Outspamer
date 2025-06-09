@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from .settings import Config, load
 from .outlook import send_with_outlook
+from .sendgrid import send_with_sendgrid
 from .template_utils import process_template_file, extract_subject_and_body
 from .utils import normalize_columns, resolve_leads_path, extract_subject
 
@@ -30,6 +31,7 @@ def send_campaign(
     language_column: str | None = None,
     cc_column: str | None = None,
     dry_run: bool = False,
+    provider: str = "sendgrid",
 ):
     paths = cfg.paths
     defaults = cfg.defaults
@@ -40,6 +42,13 @@ def send_campaign(
     )
     language_column = language_column or defaults.language_column
     cc_column = cc_column if cc_column is not None else defaults.cc_column
+
+    if provider.lower() == "sendgrid":
+        send_func = send_with_sendgrid
+    elif provider.lower() == "outlook":
+        send_func = send_with_outlook
+    else:
+        raise ValueError(f"Unknown provider: {provider}")
 
     xls = resolve_leads_path(cfg, excel_path)
     sheet = sheet_name or defaults.sheet_name
@@ -192,7 +201,7 @@ def send_campaign(
                     send_time = base_time + timedelta(hours=hour_offset)
                     send_mode = False
 
-                send_with_outlook(
+                send_func(
                     row=row,
                     html_body=html,
                     subject=final_subject,
@@ -233,7 +242,7 @@ def send_campaign(
                     else:
                         base_time = campaign_start
                     send_time = base_time + timedelta(hours=1)
-                    send_with_outlook(
+                    send_func(
                         row=row,
                         html_body=html,
                         subject=final_subject,

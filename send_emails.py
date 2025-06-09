@@ -38,6 +38,12 @@ def run(
         "language", help="Column holding language abbreviation (de, en…)"
     ),
     dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Render but not send"),
+    provider: str = typer.Option(
+        "sendgrid",
+        "--provider",
+        help="Mail provider ('sendgrid' or 'outlook')",
+        show_default=True,
+    ),
 ):
     send_campaign(
         excel_path=leads,
@@ -49,6 +55,7 @@ def run(
         language_column=language_column,
         cc_column=cc_column,
         dry_run=dry_run,
+        provider=provider,
     )
 
 

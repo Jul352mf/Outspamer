@@ -6,4 +6,6 @@ openpyxl
 beautifulsoup4
 pytz
 Flask
+sendgrid
+python-dotenv
 

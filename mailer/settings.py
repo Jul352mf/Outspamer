@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 import tomllib
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
 TOML = ROOT / "settings.toml"
+load_dotenv(ROOT / ".env", override=False)
 
 
 @dataclass
