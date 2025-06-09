@@ -36,8 +36,8 @@ def process_template_file(path: Path) -> None:
     """
 
     text = path.read_text(encoding="utf-8")
-    #if PROCESSED_MARKER in text:
-    #    return
+    if PROCESSED_MARKER in text:
+        return
 
     soup = BeautifulSoup(text, "html.parser")
 

@@ -4,11 +4,11 @@ templates   = "templates"
 leads       = "leads"
 
 [defaults]
-delay_seconds   = 0.1
+delay_seconds   = 0.3
 sheet_name      = "Sheet1"
 timezone        = "Europe/Zurich"
-default_leads_file = "LL_Ready_only_emails.xlsx"
-template_base   = "Mukran_template_notion_export"
+default_leads_file = "sample_leads.xlsx"
+template_base   = "Mulch"
 account         = ""
 template_column = "template"
 language_column = "language"
