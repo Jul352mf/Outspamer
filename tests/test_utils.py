@@ -40,17 +40,17 @@ def test_resolve_leads_path(tmp_path, monkeypatch):
     assert resolve_leads_path(mailer.cfg, "foo.xlsx") == file
 
 
-def test_send_campaign_calls_outlook(monkeypatch, tmp_path):
+def test_send_campaign_calls_send_email(monkeypatch, tmp_path):
     xls = tmp_path / "l.xlsx"
     df = pd.DataFrame({"email": ["test@example.com"], "vorname": ["Foo"]})
     df.to_excel(xls, index=False)
 
     calls = []
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         calls.append(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
 
     # create a minimal template expected by send_campaign
@@ -73,10 +73,10 @@ def test_template_subject_overrides(monkeypatch, tmp_path):
 
     captured = {}
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         captured.update(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
     monkeypatch.setattr(mailer.cfg.defaults, "subject_line", "Default")
     monkeypatch.setattr(mailer.cfg.defaults, "template_base", "email")
@@ -103,10 +103,10 @@ def test_cc_threshold(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         calls.append(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
     monkeypatch.setattr(mailer.cfg.defaults, "cc_threshold", 3)
 
@@ -146,10 +146,10 @@ def test_personalize_first_only(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         calls.append(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
     monkeypatch.setattr(mailer.cfg.defaults, "cc_threshold", 1)
 
@@ -176,10 +176,10 @@ def test_language_fallback(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         calls.append(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
 
     tpl_dir = tmp_path / "tpl_fb"
@@ -201,10 +201,10 @@ def test_follow_up_english(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         calls.append(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
 
     tpl_dir = tmp_path / "tpl_follow"
@@ -229,10 +229,10 @@ def test_ch_multilang(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_send_with_outlook(**kwargs):
+    def fake_send_email(**kwargs):
         calls.append(kwargs)
 
-    monkeypatch.setattr(mailer, "send_with_outlook", fake_send_with_outlook)
+    monkeypatch.setattr(mailer, "send_email", fake_send_email)
     monkeypatch.setattr(mailer.cfg.defaults, "default_leads_file", str(xls))
 
     tpl_dir = tmp_path / "tpl_ch"

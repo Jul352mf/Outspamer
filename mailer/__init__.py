@@ -11,11 +11,19 @@ from zoneinfo import ZoneInfo
 
 from .settings import Config, load
 from .outlook import send_with_outlook
+from .postmark import send_with_postmark
 from .template_utils import process_template_file, extract_subject_and_body
 from .utils import normalize_columns, resolve_leads_path, extract_subject
 
 log = logging.getLogger(__name__)
 cfg: Config = load()
+
+
+def send_email(provider: str, token: str | None = None, **kwargs) -> None:
+    if provider == "postmark":
+        send_with_postmark(**kwargs, token=token)
+    else:
+        send_with_outlook(**kwargs)
 
 
 def send_campaign(
@@ -192,7 +200,9 @@ def send_campaign(
                     send_time = base_time + timedelta(hours=hour_offset)
                     send_mode = False
 
-                send_with_outlook(
+                send_email(
+                    provider=defaults.provider,
+                    token=defaults.postmark_token,
                     row=row,
                     html_body=html,
                     subject=final_subject,
@@ -233,7 +243,9 @@ def send_campaign(
                     else:
                         base_time = campaign_start
                     send_time = base_time + timedelta(hours=1)
-                    send_with_outlook(
+                    send_email(
+                        provider=defaults.provider,
+                        token=defaults.postmark_token,
                         row=row,
                         html_body=html,
                         subject=final_subject,

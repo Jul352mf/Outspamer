@@ -29,6 +29,8 @@ class Defaults:
     template_column: str = "template"
     language_column: str = "language"
     cc_column: str = "cc"
+    provider: str = "postmark"
+    postmark_token: str = ""
 
 
 @dataclass
@@ -75,6 +77,8 @@ def load() -> Config:
         ("TEMPLATE_COLUMN", "template_column"),
         ("LANGUAGE_COLUMN", "language_column"),
         ("CC_COLUMN", "cc_column"),
+        ("MAIL_PROVIDER", "provider"),
+        ("POSTMARK_TOKEN", "postmark_token"),
     ]:
         if os.getenv(envvar):
             setattr(defaults, attr, os.getenv(envvar))

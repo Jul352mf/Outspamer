@@ -1,6 +1,6 @@
 # Outspamer
 
-This project provides a small command line utility for sending personalized email campaigns using Microsoft Outlook. Leads are loaded from an Excel spreadsheet and merged into Jinja2-based HTML templates. Mails can be scheduled or sent immediately and optional attachments are automatically added from the configured folder.
+This project provides a small command line utility for sending personalized email campaigns. It supports Microsoft Outlook as well as Postmark. Leads are loaded from an Excel spreadsheet and merged into Jinja2-based HTML templates. Mails can be scheduled or sent immediately and optional attachments are automatically added from the configured folder.
 
 **Important:** This code is intended for controlled outreach and testing. Make sure that any usage complies with local regulations and the terms of your email provider.
 
@@ -9,13 +9,16 @@ This project provides a small command line utility for sending personalized emai
 - Reads contact data from an Excel sheet
 - Language-specific templates using Jinja2
 - Optional send scheduling with configurable delays
+- Pluggable provider (Outlook or Postmark)
 - Supports multiple Outlook accounts
 - Simple CLI interface powered by [Typer](https://typer.tiangolo.com)
 
 ## Requirements
 
 - Python 3.11 or newer
-- Microsoft Outlook installed on Windows (for the COM interface)
+- Microsoft Outlook on Windows if using the Outlook provider
+- Postmark server token via the `POSTMARK_TOKEN` environment variable or
+  `postmark_token` setting
 - See `requirements.txt` for Python package dependencies
 
 ## Installation
@@ -61,13 +64,16 @@ account           = ""
 template_column   = "template"
 language_column   = "language"
 cc_column         = "cc"
+provider          = "postmark"
+postmark_token    = ""
 ```
 
-The optional `account` field selects a specific Outlook account by display name
-or SMTP address. `template_column` allows specifying per-row template names. If
-absent, the template is built from `template_base` and the value in
-`language_column`. `cc_column` can hold additional recipients; if omitted,
-addresses separated by semicolons in the `email` column will be used.
+`provider` selects the mail backend: `outlook` or `postmark`. The optional
+`account` field is used as the Outlook account name or as the `From` address for
+Postmark. `template_column` allows specifying per-row template names. If absent,
+the template is built from `template_base` and the value in `language_column`.
+`cc_column` can hold additional recipients; if omitted, addresses separated by
+semicolons in the `email` column will be used.
 
 
 ## Usage

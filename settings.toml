@@ -15,3 +15,5 @@ language_column = "language"
 cc_column       = "cc"
 cc_threshold   = 3
 subject_line    = "Default Subject Settings"
+provider         = "postmark"
+postmark_token   = ""
