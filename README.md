@@ -18,7 +18,8 @@ This project provides a small command line utility for sending personalized emai
 - Python 3.11 or newer
 - Microsoft Outlook on Windows if using the Outlook provider
 - Postmark server token via the `POSTMARK_TOKEN` environment variable or
-  `postmark_token` setting
+  `postmark_token` setting. These variables can also be defined in a `.env`
+  file at the project root.
 - See `requirements.txt` for Python package dependencies
 
 ## Installation
@@ -45,7 +46,7 @@ This project provides a small command line utility for sending personalized emai
 
 ## Configuration
 
-The application reads basic paths and defaults from `settings.toml`. You can adjust directories for attachments, templates and leads as well as the default delay between mails. Environment variables with the same names can override the TOML settings.
+The application reads basic paths and defaults from `settings.toml`. You can adjust directories for attachments, templates and leads as well as the default delay between mails. Environment variables with the same names can override the TOML settings. A `.env` file in the project root is loaded automatically so you can place variables like `POSTMARK_TOKEN` there.
 The bundled `sample_leads.xlsx` file contains **fictitious** contact details for testing only.
 
 ```
