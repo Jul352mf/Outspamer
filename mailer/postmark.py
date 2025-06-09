@@ -3,7 +3,6 @@ import logging
 import pathlib
 import base64
 import mimetypes
-import time
 from datetime import datetime, timedelta
 
 from postmarker.core import PostmarkClient
@@ -62,11 +61,7 @@ def send_with_postmark(
         log.error("Postmark token not configured")
         return
 
-    if send_time is not None and not send_now_mode:
-        schedule = send_time + timedelta(seconds=index * delay_seconds)
-        delta = (schedule - datetime.now()).total_seconds()
-        if delta > 0:
-            time.sleep(delta)
+
 
     data = {
         "From": account_name or os.getenv("POSTMARK_FROM", ""),
@@ -76,6 +71,12 @@ def send_with_postmark(
     }
     if cc:
         data["Cc"] = cc
+        
+    if send_time is not None and not send_now_mode:
+        schedule = send_time + timedelta(seconds=index * delay_seconds)
+        # Postmark expects an RFC3339 string; keep the timezone info
+        data["DeliverAt"] = schedule.isoformat()
+        log.info("Scheduled delivery at %s (Zurich time)", schedule.isoformat())
 
     attachments = _collect_attachments(attachments_dir)
     if attachments:
